@@ -512,22 +512,27 @@ class LootInfo:
             case 'MID':
                 if material_data[1] != 'M':
                     warning(f'Unexpected MID material format: {material_data}')
-                manufacturer = material_data[2]
                 # Legendary items have a different material format and don't include manufacturer.
-                # However, each legendary has a unique identifier in element 4, which
+                # However, each legendary has a unique identifier in element 3 or 4, which
                 # we can use to determine not only the manufacturer but the specific legendary.
-                if manufacturer == 'LEG':
+                if material_data[2] == 'LEG':
                     self.rarity = Rarity.LEGENDARY
-                    legendary = material_data[4]
+                    legendary = (
+                        material_data[3] if material_data[3] in LEGENDARY_MAP else
+                        material_data[4] if material_data[4] in LEGENDARY_MAP else
+                        None
+                    )
                     if legendary in LEGENDARY_MAP:
-                        manufacturer = LEGENDARY_MAP[legendary].get('manufacturer', '')
                         self.legendary_name = LEGENDARY_MAP[legendary].get('name', '')
+                        manufacturer = LEGENDARY_MAP[legendary].get('manufacturer', '').lower()
+                        if manufacturer in Manufacturer:
+                            self.manufacturer = manufacturer
                     else:
-                        warning(f'Unknown legendary identifier {legendary} in {material_data}')
-                elif manufacturer in MANUFACTURER_MAP:
-                    self.manufacturer = MANUFACTURER_MAP.get(manufacturer, Manufacturer.UNKNOWN)
+                        warning(f'Unable to find known legendary identifier in {material_data}')
+                elif material_data[2] in MANUFACTURER_MAP:
+                    self.manufacturer = MANUFACTURER_MAP.get(material_data[2], Manufacturer.UNKNOWN)
                 else:
-                    warning(f'Unknown manufacturer {manufacturer} in {material_data}')       
+                    warning(f'Unknown manufacturer {material_data[2]} in {material_data}')
             case _:
                 warning(f'Unknown material prefix {material_data[0]} in {material_data}')
 

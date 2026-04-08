@@ -9,5 +9,10 @@
         "name": "Kill Spring",
         "item_type": "REPKIT",
         "manufacturer": "TEDIORE"
+    },
+    "Rainbow:": {
+        "name": "Firewerks",
+        "item_type": "SHIELD",
+        "manufacturer": "TORGUE"
     }
 }
