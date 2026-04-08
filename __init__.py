@@ -303,7 +303,7 @@ def _populate_filter_config_and_build_options():
     for item_type in set(FIRMWARE_MAP.values()):
         filter_config["FIRMWARE"][item_type] = BoolOption(
             value=True,
-            identifier=item_type.name,
+            identifier=item_type,
             description=f"{item_type} items with firmware",
         )
     options.append(NestedOption(
