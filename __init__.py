@@ -261,6 +261,7 @@ class LootInfo:
         if item.RootPrimitiveComponent.GetNumMaterials() > 0:
             # There's a lot of info in the 0th material for both gear and pickups.
             loot.raw_material_data = item.RootPrimitiveComponent.GetMaterial(0).Name
+            loot._process_material_data()
 
         return loot
 
