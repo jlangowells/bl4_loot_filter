@@ -39,6 +39,9 @@ Users of this mod can help with this - when you teleport a legendary drop
 you can open up the modding console which may display a message about an unknown legendary identifier.
 If it does, please reach out and let me know the identifier displayed as well as which legendary you teleported.
 
+I'd also love to have more granular filtering based on item parts, but I'm not sure where to get that information right now.
+If you have ideas, please contact me.
+
 ## License
 
 GPL-3.0 - See LICENSE file for details
@@ -49,7 +52,8 @@ Lango
 
 ## Feedback & Issues
 
-For bug reports and feature requests, visit the GitHub repository where this mod is hosted.
+Please report any issues, unrecognized items, or missing legendary information at https://github.com/jlangowells/bl4_loot_filter/issues.
+You can also reach me on the [Borderlands Modding Discord](https://discord.com/invite/bXeqV8Ef9R) as @Lango.
 
 ## Acknowledgements
 
