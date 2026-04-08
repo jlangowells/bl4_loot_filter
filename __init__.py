@@ -6,7 +6,7 @@ import math
 import importlib.resources
 
 from dataclasses import dataclass
-from mods_base import build_mod, get_pc, keybind
+from mods_base import build_mod, get_pc, keybind, NestedOption, BoolOption, GroupedOption
 from unrealsdk import make_struct, find_all
 from unrealsdk.unreal import UObject, IGNORE_STRUCT
 from unrealsdk.logging import info, warning
@@ -177,6 +177,21 @@ COLOR_RARITY_MAP = {
 
 NIAGARA_TRUE  = bytes((0xFF, 0xFF, 0xFF, 0xFF))
 NIAGARA_FALSE = bytes((0x00, 0x00, 0x00, 0x00))
+
+FirmwareFilters = {
+    type: BoolOption(
+        value=True,
+        identifier=type,
+        description=f"Keep {type} items with firmware regardless of other filters",
+    ) for type in set(FIRMWARE_MAP.values())
+}
+
+FirmwareOptions = GroupedOption(
+    identifier="Firmware",
+    description="Whether to keep items with firmware regardless of other filters",
+    children=list(FirmwareFilters.values())
+)
+
 
 @dataclass(slots=True)
 class LootInfo:
@@ -486,8 +501,13 @@ def filter_loot(item: LootInfo, unwanted: bool = False, unknown: bool = False) -
         # Final check to see if it's an item with firmware
         # that we should take regardless of other filters.
         if not passes_filter and item.firmware:
+            firmware_filter = FirmwareFilters.get(FIRMWARE_MAP.get(item.item_type, ''))
+            if firmware_filter is None:
+                warning(f"Item has firmware but no firmware filter found for"
+                        f"item type {item.item_type} in item: {item}")
+                return unknown
             passes_filter = bool(
-                CONFIG.get("FIRMWARE", {}).get(FIRMWARE_MAP.get(item.item_type, ''), False)
+                firmware_filter.value
             )
 
     return not unknown and passes_filter != unwanted
@@ -543,4 +563,8 @@ def _teleport_loot(location, rotation, unwanted: bool = False, unknown: bool = F
         drop.RootPrimitiveComponent.SetSimulatePhysics(True)
         drop.K2_TeleportTo(location, rotation)
 
-build_mod(keybinds=[teleport_loot,delete_loot,teleport_unknown_loot])
+
+build_mod(
+    keybinds=[teleport_loot, delete_loot, teleport_unknown_loot],
+    options=[FirmwareOptions]
+)

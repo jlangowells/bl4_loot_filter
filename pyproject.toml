@@ -2,11 +2,11 @@
 name = "bl4_loot_filter"
 version = "1"
 authors = [{ name = "Lango" }]
-description = "Teleport and delete* loot. Loot must be actively loaded to teleport or delete and it's draw distance isnt great. *Deleting loot just teleports it into the void which may result in phantom legendaries on your radar."
+description = "Filter loot, teleporting the loot you want for easy pickup and deleting the loot you don't."
 
 [tool.sdkmod]
 name = "Loot Filter"
 license = {name = "GPL3", url = "https://choosealicense.com/licenses/gpl-3.0/" }
-download = "https://github.com/RedxYeti/yeti-bl4-sdk/raw/refs/heads/main/GroundLootHelpers/GroundLootHelpers.sdkmod"
+download = "https://github.com/jlangowells/bl4_loot_filter/releases"
 version = "1"
 coop_support = "ClientSide"
