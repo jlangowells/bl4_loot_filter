@@ -4,5 +4,10 @@
         "item_type": "WEAPON",
         "weapon_type": "PISTOL",
         "manufacturer": "JAKOBS"
+    },
+    "Ice": {
+        "name": "Kill Spring",
+        "item_type": "REPKIT",
+        "manufacturer": "TEDIORE"
     }
 }

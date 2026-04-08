@@ -360,7 +360,8 @@ class LootInfo:
             lines.append(f"Raw Body Data: {self.raw_body_data}")
         if self.raw_material_data:
             lines.append(f"Raw Material Data: {self.raw_material_data}")
-        return "\n".join(lines) if lines else "Unknown Loot"
+        formatted = "\n".join(lines) if lines else "Unknown Loot"
+        return f"LootInfo(\n{formatted}\n)"
 
     @classmethod
     def from_inventory_pickup(cls, item: UObject) -> LootInfo:
@@ -530,8 +531,6 @@ class LootInfo:
             case _:
                 warning(f'Unknown material prefix {material_data[0]} in {material_data}')
 
-
-
 # Items of the day are technically pickups but they aren't loot on the ground,
 # so we need to filter them out.
 def get_items_of_the_day() -> list:
@@ -645,7 +644,7 @@ def filter_loot(item: LootInfo, unwanted: bool = False, unknown: bool = False) -
                 if item.vault_hunter == VaultHunter.UNKNOWN:
                     warning(f"Unknown vault hunter for item: {item}")
                     return unknown
-                filter_option = rarity_config.get(ItemType.CLASS_MOD, {}).get(item.vault_hunter, None)
+                filter_option = rarity_config[ItemType.CLASS_MOD].get(item.vault_hunter, None)
                 if filter_option is None:
                     warning(f"No class mod filter found for vault hunter {item.vault_hunter}")
                     return unknown
