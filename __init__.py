@@ -217,7 +217,7 @@ def _populate_filter_config_and_build_options():
             pickup_options.append(NestedOption(
                 identifier="Ammo",
                 description="Ammo filters by weapon type",
-                children=[FilterConfig["PICKUPS"]["AMMO"].values()]
+                children=list(FilterConfig["PICKUPS"]["AMMO"].values())
             ))
         else:
             FilterConfig["PICKUPS"][pickup_type] = BoolOption(
