@@ -376,7 +376,7 @@ class LootInfo:
                         self.legendary_name = LEGENDARY_MAP[legendary].get('name', '')
                     else:
                         warning(f'Unknown legendary identifier {legendary} in {material_data}')
-                if manufacturer in MANUFACTURER_MAP:
+                elif manufacturer in MANUFACTURER_MAP:
                     self.manufacturer = MANUFACTURER_MAP.get(manufacturer, Manufacturer.UNKNOWN)
                 else:
                     warning(f'Unknown manufacturer {manufacturer} in {material_data}')       
