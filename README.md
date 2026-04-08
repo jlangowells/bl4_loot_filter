@@ -12,11 +12,11 @@ A Borderlands 4 SDK mod that allows you to filter and teleport ground loot based
 ## Installation
 
 1. Install the BL4 SDK following the instructions at https://bl-sdk.github.io/oak2-mod-db/
-2. Download the zip folder on the [releases page](https://github.com/jlangowells/bl4_loot_filter/releases) and unzip it into your sdk_mods folder
+2. Download the zip folder on the [releases page](https://github.com/jlangowells/bl4_loot_filter/releases) and unzip it into your `sdk_mods` folder
 
 ## Configuration
 
-Edit `config.json` to customize which loot types you want to see along the following axes:
+You can use the SDK mod console to customize which loot types you want to see along the following axes:
 
 - Rarity
 - Item type
@@ -24,7 +24,14 @@ Edit `config.json` to customize which loot types you want to see along the follo
 - Manufacturer
 - Presence of firmware
 
-Set values to `true` to teleport them or `false` to delete them.
+Set values to `On` to have them teleport using the teleport loot command
+or `Off` to delete them using the delete loot command.
+
+Default configuration is `On` for all items of Legendary or Epic rarity or with firmware, and `Off` for everything else.
+Phosphene weapons are always treated as `On`, which is not even configurable.
+
+Because there are a large number of configuration options, you may find it easier to
+edit the `LootFilter.json` config file directly, which you will find in your `sdk_mods/settings` folder.
 
 You will also need to configure your hotkeys in game in the modding SDK console.
 If desired, you can bind all functions to the same hotkey so one press will teleport loot you want,
@@ -41,9 +48,6 @@ If it does, please reach out and let me know the identifier displayed as well as
 
 I'd also love to have more granular filtering based on item parts, but I'm not sure where to get that information right now.
 If you have ideas, please contact me.
-
-I'd also potentially like to have the filter configuration inside the modding console or game UI rather than a separate config file,
-but I'm not particular interested in developing a UI.
 
 ## License
 

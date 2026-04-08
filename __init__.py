@@ -278,7 +278,7 @@ def _populate_filter_config_and_build_options():
             config["PICKUPS"]["AMMO"] = {}
             for weapon_type in set(WEAPON_TYPE_MAP.values()):
                 config["PICKUPS"]["AMMO"][weapon_type] = BoolOption(
-                    value=True,
+                    value=False,
                     identifier=weapon_type.name,
                     description=f"{weapon_type} ammo",
                 )
@@ -289,7 +289,7 @@ def _populate_filter_config_and_build_options():
             ))
         else:
             config["PICKUPS"][pickup_type] = BoolOption(
-                value=True,
+                value=False,
                 identifier=pickup_type.name,
                 description=f"{pickup_type} pickups",
             )
