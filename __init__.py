@@ -4,6 +4,7 @@ import enum
 import json
 import math
 
+from pprint import pprint
 from dataclasses import dataclass
 from pathlib import Path
 from mods_base import build_mod, get_pc, keybind, open_in_mod_dir, NestedOption, BoolOption
@@ -147,6 +148,7 @@ PICKUP_TYPE_MAP = {
     'ShieldBoosters': PickupType.SHIELDBOOSTER,
 }
 
+FIRMWARE = "FIRMWARE"
 FIRMWARE_MAP = {
     ItemType.SHIELD: 'SHIELD',
     ItemType.CLASS_MOD: 'CLASS_MOD',
@@ -184,134 +186,135 @@ def _populate_filter_config_and_build_options():
 
     # Set up gear filters, categorized by rarity and then item type.
     # Each item type has different details to filter by,
-    config["GEAR"] = {}
+    config[LootType.GEAR] = {}
     rarity_options = []
     for rarity in set(Rarity).difference({Rarity.UNKNOWN}):
         # Default to taking epic or better, and deleting worse.
         default_value = rarity in (Rarity.EPIC, Rarity.LEGENDARY, Rarity.PEARLESCENT)
-        config["GEAR"][rarity.name] = {}
+        config[LootType.GEAR][rarity] = {}
         item_type_options = []
         # Weapons are filtered by manufacturer and weapon type
-        config["GEAR"][rarity.name]["WEAPON"] = {}
+        config[LootType.GEAR][rarity][ItemType.WEAPON] = {}
         weapon_options = []
         for weapon_type in set(WEAPON_TYPE_MAP.values()):
-            config["GEAR"][rarity.name]["WEAPON"][weapon_type] = {}
+            config[LootType.GEAR][rarity][ItemType.WEAPON][weapon_type] = {}
             for manufacturer in base_manufacturers:
-                config["GEAR"][rarity.name]["WEAPON"][weapon_type][manufacturer] = BoolOption(
+                config[LootType.GEAR][rarity][ItemType.WEAPON][weapon_type][manufacturer] = (
+                BoolOption(
                     value=default_value,
-                    identifier=manufacturer.name,
+                    identifier=manufacturer,
                     description=f"{rarity} {manufacturer} {weapon_type}",
-                )
+                ))
             weapon_options.append(NestedOption(
-                identifier=weapon_type.name,
+                identifier=weapon_type,
                 description=f"{weapon_type} filters by manufacturer",
-                children=list(config["GEAR"][rarity.name]["WEAPON"][weapon_type].values())
+                children=list(config[LootType.GEAR][rarity][ItemType.WEAPON][weapon_type].values())
             ))
         item_type_options.append(NestedOption(
-            identifier="WEAPON",
+            identifier=ItemType.WEAPON,
             description="Weapon filters",
             children=weapon_options
         ))
 
         # Enhancements have all manufacturers
-        config["GEAR"][rarity.name]["ENHANCEMENT"] = {}
+        config[LootType.GEAR][rarity][ItemType.ENHANCEMENT] = {}
         for manufacturer in set(MANUFACTURER_MAP.values()):
-            config["GEAR"][rarity.name]["ENHANCEMENT"][manufacturer] = BoolOption(
+            config[LootType.GEAR][rarity][ItemType.ENHANCEMENT][manufacturer] = BoolOption(
                 value=default_value,
-                identifier=manufacturer.name,
+                identifier=manufacturer,
                 description=f"{rarity} {manufacturer} enhancements",
             )
         item_type_options.append(NestedOption(
-            identifier="ENHANCEMENT",
+            identifier=ItemType.ENHANCEMENT,
             description="Enhancement filters",
-            children=list(config["GEAR"][rarity.name]["ENHANCEMENT"].values())
+            children=list(config[LootType.GEAR][rarity][ItemType.ENHANCEMENT].values())
         ))
 
         # Class mods are by vault hunter rather than manufacturer
-        config["GEAR"][rarity.name]["CLASS_MOD"] = {}
+        config[LootType.GEAR][rarity][ItemType.CLASS_MOD] = {}
         for vh in set(VAULT_HUNTER_MAP.values()):
-            config["GEAR"][rarity.name]["CLASS_MOD"][vh] = BoolOption(
+            config[LootType.GEAR][rarity][ItemType.CLASS_MOD][vh] = BoolOption(
                 value=default_value,
-                identifier=vh.name,
+                identifier=vh,
                 description=f"{rarity} {vh} class mods",
             )
         item_type_options.append(NestedOption(
-            identifier="CLASS_MOD",
+            identifier=ItemType.CLASS_MOD,
             description="Class mod filters",
-            children=list(config["GEAR"][rarity.name]["CLASS_MOD"].values())
+            children=list(config[LootType.GEAR][rarity][ItemType.CLASS_MOD].values())
         ))
 
         # Remaining items are by manufacturer
         for item_type in (ItemType.SHIELD, ItemType.GRENADE,
                           ItemType.HEAVY_ORDNANCE, ItemType.REPKIT):
-            config["GEAR"][rarity.name][item_type] = {}
+            config[LootType.GEAR][rarity][item_type] = {}
             for manufacturer in base_manufacturers:
-                config["GEAR"][rarity.name][item_type][manufacturer] = BoolOption(
+                config[LootType.GEAR][rarity][item_type][manufacturer] = BoolOption(
                     value=default_value,
-                    identifier=manufacturer.name,
+                    identifier=manufacturer,
                     description=f"{rarity} {manufacturer} {item_type} ",
                 )
             item_type_options.append(NestedOption(
-                identifier=item_type.name,
+                identifier=item_type,
                 description=f"{item_type} filters by manufacturer",
-                children=list(config["GEAR"][rarity.name][item_type].values())
+                children=list(config[LootType.GEAR][rarity][item_type].values())
             ))
 
         rarity_options.append(NestedOption(
-            identifier=rarity.name,
+            identifier=rarity,
             description=f"{rarity} items",
             children=item_type_options
         ))
 
     options.append(NestedOption(
-        identifier="GEAR",
+        identifier=LootType.GEAR,
         description="Gear filters",
         children=rarity_options
     ))
 
     # Set up pickup filters
-    config["PICKUPS"] = {}
+    config[LootType.PICKUPS] = {}
     pickup_options = []
     for pickup_type in set(PICKUP_TYPE_MAP.values()):
         # Allow gun type ammo filtering
         if pickup_type == PickupType.AMMO:
-            config["PICKUPS"]["AMMO"] = {}
+            config[LootType.PICKUPS][PickupType.AMMO] = {}
             for weapon_type in set(WEAPON_TYPE_MAP.values()):
-                config["PICKUPS"]["AMMO"][weapon_type] = BoolOption(
+                config[LootType.PICKUPS][PickupType.AMMO][weapon_type] = BoolOption(
                     value=False,
-                    identifier=weapon_type.name,
+                    identifier=weapon_type,
                     description=f"{weapon_type} ammo",
                 )
             pickup_options.append(NestedOption(
-                identifier="Ammo",
+                identifier=PickupType.AMMO,
                 description="Ammo filters by weapon type",
-                children=list(config["PICKUPS"]["AMMO"].values())
+                children=list(config[LootType.PICKUPS][PickupType.AMMO].values())
             ))
         else:
-            config["PICKUPS"][pickup_type] = BoolOption(
+            config[LootType.PICKUPS][pickup_type] = BoolOption(
                 value=False,
-                identifier=pickup_type.name,
+                identifier=pickup_type,
                 description=f"{pickup_type} pickups",
             )
-            pickup_options.append(config["PICKUPS"][pickup_type])
+            pickup_options.append(config[LootType.PICKUPS][pickup_type])
     options.append(NestedOption(
-        identifier="PICKUPS",
+        identifier=LootType.PICKUPS,
         description="Pickup Filters",
         children=pickup_options
     ))
 
     # Set up firmware filters
-    config["FIRMWARE"] = {}
+    config[FIRMWARE] = {}
     for item_type in set(FIRMWARE_MAP.values()):
-        config["FIRMWARE"][item_type] = BoolOption(
+        config[FIRMWARE][item_type] = BoolOption(
             value=True,
             identifier=item_type,
             description=f"{item_type} items with firmware",
         )
     options.append(NestedOption(
-        identifier="FIRMWARE",
+        identifier=FIRMWARE,
         description="Firmware Filters",
-        children=list(config["FIRMWARE"].values())
+        children=list(config[FIRMWARE].values())
     ))
 
     return options
@@ -590,13 +593,13 @@ def filter_loot(item: LootInfo, unwanted: bool = False, unknown: bool = False) -
             if item.weapon_type == WeaponType.UNKNOWN:
                 warning(f"Unknown weapon type for ammo item: {item}")
                 return unknown
-            filter_option = config["PICKUPS"]["AMMO"].get(item.weapon_type.name, None)
+            filter_option = config[LootType.PICKUPS][PickupType.AMMO].get(item.weapon_type, None)
             if filter_option is None:
                 warning(f"No ammo filter found for weapon type {item.weapon_type}")
                 return unknown
             passes_filter = filter_option.value
         else:
-            filter_option = config["PICKUPS"].get(item.pickup_type.name, None)
+            filter_option = config[LootType.PICKUPS].get(item.pickup_type, None)
             if filter_option is None:
                 warning(f"No pickup filter found for pickup type {item.pickup_type}")
                 return unknown
@@ -607,7 +610,7 @@ def filter_loot(item: LootInfo, unwanted: bool = False, unknown: bool = False) -
         if rarity == Rarity.UNKNOWN:
             warning(f"Unknown rarity for item: {item}")
             return unknown
-        rarity_config = config["GEAR"].get(rarity.name, None)
+        rarity_config = config[LootType.GEAR].get(rarity, None)
         if rarity_config is None:
             warning(f"No gear filter found for rarity {rarity}")
             return unknown
@@ -619,8 +622,8 @@ def filter_loot(item: LootInfo, unwanted: bool = False, unknown: bool = False) -
                 if item.manufacturer == Manufacturer.UNKNOWN:
                     warning(f"Unknown manufacturer for item: {item}")
                     return unknown
-                filter_option = rarity_config["WEAPON"].get(
-                    item.weapon_type.name, {}).get(item.manufacturer.name, None)
+                filter_option = rarity_config[ItemType.WEAPON].get(
+                    item.weapon_type, {}).get(item.manufacturer, None)
                 if filter_option is None:
                     warning(f"No weapon filter found for {item.weapon_type} "
                             f"and manufacturer {item.manufacturer}")
@@ -632,7 +635,7 @@ def filter_loot(item: LootInfo, unwanted: bool = False, unknown: bool = False) -
                     warning(f"Unknown manufacturer for item: {item}")
                     return unknown
                 filter_option = rarity_config.get(
-                    item.item_type.name, {}).get(item.manufacturer.name, None)
+                    item.item_type, {}).get(item.manufacturer, None)
                 if filter_option is None:
                     warning(f"No {item.item_type} filter found "
                             f"for manufacturer {item.manufacturer}")
@@ -642,7 +645,7 @@ def filter_loot(item: LootInfo, unwanted: bool = False, unknown: bool = False) -
                 if item.vault_hunter == VaultHunter.UNKNOWN:
                     warning(f"Unknown vault hunter for item: {item}")
                     return unknown
-                filter_option = rarity_config.get("CLASS_MOD", {}).get(item.vault_hunter.name, None)
+                filter_option = rarity_config.get(ItemType.CLASS_MOD, {}).get(item.vault_hunter, None)
                 if filter_option is None:
                     warning(f"No class mod filter found for vault hunter {item.vault_hunter}")
                     return unknown
@@ -654,9 +657,9 @@ def filter_loot(item: LootInfo, unwanted: bool = False, unknown: bool = False) -
         # Final check to see if it's an item with firmware
         # that we should take regardless of other filters.
         if not passes_filter and item.firmware:
-            firmware_filter = config["FIRMWARE"].get(item.item_type)
+            firmware_filter = config[FIRMWARE].get(FIRMWARE_MAP.get(item.item_type, ''), None)
             if firmware_filter is None:
-                warning(f"Item has firmware but no firmware filter found for"
+                warning(f"Item has firmware but no firmware filter found for "
                         f"item type {item.item_type} in item: {item}")
                 return unknown
             passes_filter = bool(
@@ -669,19 +672,19 @@ DELETE_LOOT_LOCATION = make_struct("Vector", X=100000,Y=100000,Z=-1000000000)
 @keybind("Delete Loot")
 def delete_loot():
     """Delete only loot that does not pass filter_loot."""
-    info("Deleting loot")
+    info("\nDeleting loot")
     _teleport_loot(DELETE_LOOT_LOCATION, IGNORE_STRUCT, unwanted=True)
 
 @keybind("Teleport Loot")
 def teleport_loot():
     """Teleport filtered loot to a location in front of the player."""
-    info("Teleporting loot")
+    info("\nTeleporting loot")
     _teleport_loot(*_calculate_teleport_location())
 
 @keybind("Teleport Unknown Loot")
 def teleport_unknown_loot():
     """Teleport filtered loot to a location in front of the player."""
-    info("Teleporting unknown loot")
+    info("\nTeleporting unknown loot")
     _teleport_loot(*_calculate_teleport_location(backwards=True), unknown=True)
 
 def _calculate_teleport_location(backwards: bool = False):
