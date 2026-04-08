@@ -42,6 +42,9 @@ If it does, please reach out and let me know the identifier displayed as well as
 I'd also love to have more granular filtering based on item parts, but I'm not sure where to get that information right now.
 If you have ideas, please contact me.
 
+I'd also potentially like to have the filter configuration inside the modding console or game UI rather than a separate config file,
+but I'm not particular interested in developing a UI.
+
 ## License
 
 GPL-3.0 - See LICENSE file for details
@@ -52,7 +55,9 @@ Lango
 
 ## Feedback & Issues
 
-Please report any issues, unrecognized items, or missing legendary information at https://github.com/jlangowells/bl4_loot_filter/issues.
+Please report any issues, unrecognized items, or missing legendary information at https://github.com/jlangowells/bl4_loot_filter/issues,
+or feel free to send me a pull request with additions to the legendary database.
+
 You can also reach me on the [Borderlands Modding Discord](https://discord.com/invite/bXeqV8Ef9R) as @Lango.
 
 ## Acknowledgements
