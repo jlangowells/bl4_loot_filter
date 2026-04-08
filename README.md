@@ -12,7 +12,7 @@ A Borderlands 4 SDK mod that allows you to filter and teleport ground loot based
 ## Installation
 
 1. Install the BL4 SDK following the instructions at https://bl-sdk.github.io/oak2-mod-db/
-2. Download the zip folder on the [releases page](https://github.com/jlangowells/bl4_loot_filter/releases) and unzip it into your `sdk_mods` folder
+2. Download the sdkmod from the [releases page](https://github.com/jlangowells/bl4_loot_filter/releases/latest/download/LootFilter.sdkmod) and place it in your `sdk_mods` folder
 
 ## Configuration
 
