@@ -119,12 +119,16 @@ MANUFACTURER_MAP = {
     'COV': Manufacturer.COV,
     'HYP': Manufacturer.HYPERION,
 }
+
 WEAPON_TYPE_MAP = {
     'Sniper': WeaponType.SNIPER,
     'Shotguns': WeaponType.SHOTGUN,
+    'shotgun': WeaponType.SHOTGUN,
     'AssaultRifles': WeaponType.ASSAULT_RIFLE,
+    'Assault': WeaponType.ASSAULT_RIFLE,
     'SMG': WeaponType.SMG,
     'Pistols': WeaponType.PISTOL,
+    'Pistol': WeaponType.PISTOL,
 }
 
 VAULT_HUNTER_MAP = {
@@ -178,20 +182,57 @@ COLOR_RARITY_MAP = {
 NIAGARA_TRUE  = bytes((0xFF, 0xFF, 0xFF, 0xFF))
 NIAGARA_FALSE = bytes((0x00, 0x00, 0x00, 0x00))
 
-FirmwareFilters = {
-    type: BoolOption(
-        value=True,
-        identifier=type,
-        description=f"Keep {type} items with firmware regardless of other filters",
-    ) for type in set(FIRMWARE_MAP.values())
-}
+FilterConfig = {}
 
-FirmwareOptions = GroupedOption(
-    identifier="Firmware",
-    description="Whether to keep items with firmware regardless of other filters",
-    children=list(FirmwareFilters.values())
-)
+def _populate_filter_config_and_build_options():
+    options = []
 
+    # Set up firmware filters
+    FilterConfig["FIRMWARE"] = {}
+    for item_type in set(FIRMWARE_MAP.values()):
+        FilterConfig["FIRMWARE"][item_type] = BoolOption(
+            value=True,
+            identifier=item_type,
+            description=f"{item_type} items with firmware",
+        )
+    options.append(GroupedOption(
+        identifier="Firmware",
+        description="Firmware Filters",
+        children=list(FilterConfig["FIRMWARE"].values())
+    ))
+
+    # Set up pickup filters
+    FilterConfig["PICKUPS"] = {}
+    pickup_options = []
+    for pickup_type in set(PICKUP_TYPE_MAP.values()):
+        # Allow gun type ammo filtering
+        if pickup_type == PickupType.AMMO:
+            FilterConfig["PICKUPS"]["AMMO"] = {}
+            for weapon_type in set(WEAPON_TYPE_MAP.values()):
+                FilterConfig["PICKUPS"]["AMMO"][weapon_type] = BoolOption(
+                    value=True,
+                    identifier=weapon_type,
+                    description=f"{weapon_type} ammo",
+                )
+            pickup_options.append(NestedOption(
+                identifier="Ammo",
+                description="Ammo filters by weapon type",
+                children=[FilterConfig["PICKUPS"]["AMMO"].values()]
+            ))
+        else:
+            FilterConfig["PICKUPS"][pickup_type] = BoolOption(
+                value=True,
+                identifier=pickup_type,
+                description=f"{pickup_type} pickups",
+            )
+            pickup_options.append(FilterConfig["PICKUPS"][pickup_type])
+    options.append(GroupedOption(
+        identifier="Pickups",
+        description="Pickup Filters",
+        children=pickup_options
+    ))
+
+    return options
 
 @dataclass(slots=True)
 class LootInfo:
@@ -373,6 +414,12 @@ class LootInfo:
                     self.pickup_type = PICKUP_TYPE_MAP.get(pickup, PickupType.UNKNOWN)
                 else:
                     warning(f'Unknown pickup type {pickup} in {material_data}')
+                if self.pickup_type == PickupType.AMMO:
+                    # Ammo has the weapon type in element 2, e.g. MI_AMMO_SMG
+                    weapon = material_data[2]
+                    self.weapon_type = WEAPON_TYPE_MAP.get(weapon, WeaponType.UNKNOWN)
+                    if self.weapon_type == WeaponType.UNKNOWN:
+                        warning(f'Unknown weapon type {weapon} for ammo in {material_data}')
             # MID is gear and may contain information we don't already have from BodyData,
             # like repkit/enhancement manufacturer.
             # Class mods also apparently have a manufacturer although it's not clear why.
@@ -457,7 +504,22 @@ def filter_loot(item: LootInfo, unwanted: bool = False, unknown: bool = False) -
         if item.pickup_type == PickupType.UNKNOWN:
             warning(f"Unknown pickup type for item: {item}")
             return unknown
-        passes_filter = bool(CONFIG.get("PICKUPS", {}).get(item.pickup_type.name, False))
+        # Ammo is a special case where we want to filter by weapon type as well.
+        if item.pickup_type == PickupType.AMMO:
+            if item.weapon_type == WeaponType.UNKNOWN:
+                warning(f"Unknown weapon type for ammo item: {item}")
+                return unknown
+            ammo_config = FilterConfig["PICKUPS"]["AMMO"].get(item.weapon_type.name, None)
+            if ammo_config is None:
+                warning(f"No ammo filter found for weapon type {item.weapon_type}")
+                return unknown
+            passes_filter = ammo_config.value
+        else:
+            pickup_config = FilterConfig["PICKUPS"].get(item.pickup_type.name, None)
+            if pickup_config is None:
+                warning(f"No pickup filter found for pickup type {item.pickup_type}")
+                return unknown
+            passes_filter = pickup_config.value
 
     # Handle GEAR by rarity and item type
     if loot_type == LootType.GEAR:
@@ -501,7 +563,7 @@ def filter_loot(item: LootInfo, unwanted: bool = False, unknown: bool = False) -
         # Final check to see if it's an item with firmware
         # that we should take regardless of other filters.
         if not passes_filter and item.firmware:
-            firmware_filter = FirmwareFilters.get(FIRMWARE_MAP.get(item.item_type, ''))
+            firmware_filter = FilterConfig["FIRMWARE"].get(item.item_type)
             if firmware_filter is None:
                 warning(f"Item has firmware but no firmware filter found for"
                         f"item type {item.item_type} in item: {item}")
@@ -563,8 +625,7 @@ def _teleport_loot(location, rotation, unwanted: bool = False, unknown: bool = F
         drop.RootPrimitiveComponent.SetSimulatePhysics(True)
         drop.K2_TeleportTo(location, rotation)
 
-
 build_mod(
     keybinds=[teleport_loot, delete_loot, teleport_unknown_loot],
-    options=[FirmwareOptions]
+    options=_populate_filter_config_and_build_options()
 )
