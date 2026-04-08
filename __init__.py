@@ -3,28 +3,20 @@ from __future__ import annotations
 import enum
 import json
 import math
-import importlib.resources
 
 from dataclasses import dataclass
-from mods_base import build_mod, get_pc, keybind, NestedOption, BoolOption, GroupedOption
+from pathlib import Path
+from mods_base import build_mod, get_pc, keybind, open_in_mod_dir, NestedOption, BoolOption, GroupedOption
 from unrealsdk import make_struct, find_all
 from unrealsdk.unreal import UObject, IGNORE_STRUCT
 from unrealsdk.logging import info, warning
 
 TELEPORT_DISTANCE = 200.0
 
-# Load loot filter config
-CONFIG: dict = {}
-try:
-    config_text = importlib.resources.read_text(__package__ or ".", "config.json")
-    CONFIG = json.loads(config_text)
-except (FileNotFoundError, json.JSONDecodeError) as e:
-    warning(f"Failed to load config.json: {e}")
-
 # Load legendary data
 LEGENDARY_MAP: dict = {}
 try:
-    legendary_text = importlib.resources.read_text(__package__ or ".", "legendaries.json")
+    legendary_text = open_in_mod_dir(Path(__file__).parent / "legendaries.json")
     LEGENDARY_MAP = json.loads(legendary_text)
 except (FileNotFoundError, json.JSONDecodeError) as e:
     warning(f"Failed to load legendaries.json: {e}")
@@ -186,6 +178,9 @@ FilterConfig = {}
 
 def _populate_filter_config_and_build_options():
     options = []
+    # COV, Hyperion, and Atlas only make enhancements
+    base_manufacturers = {m for m in MANUFACTURER_MAP.values() if m not in
+                          (Manufacturer.COV, Manufacturer.HYPERION, Manufacturer.ATLAS)}
 
     # Set up firmware filters
     FilterConfig["FIRMWARE"] = {}
@@ -231,6 +226,83 @@ def _populate_filter_config_and_build_options():
         description="Pickup Filters",
         children=pickup_options
     ))
+
+    # Set up gear filters, categorized by rarity and then item type.
+    # Each item type has different details to filter by,
+    rarity_options = []
+    for rarity in set(Rarity).difference({Rarity.UNKNOWN}):
+        FilterConfig["GEAR"][rarity.name] = {}
+        item_type_options = []
+        # Weapons are filtered by manufacturer and weapon type
+        FilterConfig["GEAR"][rarity.name]["WEAPON"] = {}
+        weapon_options = []
+        for weapon_type in set(WEAPON_TYPE_MAP.values()):
+            FilterConfig["GEAR"][rarity.name]["WEAPON"][weapon_type] = {}
+            for manufacturer in base_manufacturers:
+                FilterConfig["GEAR"][rarity.name]["WEAPON"][weapon_type][manufacturer] = BoolOption(
+                    value=True,
+                    identifier=manufacturer,
+                    description=f"{rarity} {manufacturer} {weapon_type}",
+                )
+            weapon_options.append(NestedOption(
+                identifier=weapon_type.name,
+                description=f"{weapon_type} filters by manufacturer",
+                children=list(FilterConfig["GEAR"][rarity.name]["WEAPON"][weapon_type].values())
+            ))
+        item_type_options.append(NestedOption(
+            identifier="WEAPON",
+            description="Weapon filters",
+            children=weapon_options
+        ))
+
+        # Enhancements have all manufacturers
+        FilterConfig["GEAR"][rarity.name]["ENHANCEMENT"] = {}
+        for manufacturer in set(MANUFACTURER_MAP.values()):
+            FilterConfig["GEAR"][rarity.name]["ENHANCEMENT"][manufacturer] = BoolOption(
+                value=True,
+                identifier=manufacturer,
+                description=f"{rarity} {manufacturer} enhancements",
+            )
+        item_type_options.append(NestedOption(
+            identifier="ENHANCEMENT",
+            description="Enhancement filters",
+            children=list(FilterConfig["GEAR"][rarity.name]["ENHANCEMENT"].values())
+        ))
+
+        # Class mods are by vault hunter rather than manufacturer
+        FilterConfig["GEAR"][rarity.name]["CLASS_MOD"] = {}
+        for vh in set(VAULT_HUNTER_MAP.values()):
+            FilterConfig["GEAR"][rarity.name]["CLASS_MOD"][vh] = BoolOption(
+                value=True,
+                identifier=vh,
+                description=f"{rarity} {vh} class mods",
+            )
+        item_type_options.append(NestedOption(
+            identifier="CLASS_MOD",
+            description="Class mod filters",
+            children=list(FilterConfig["GEAR"][rarity.name]["CLASS_MOD"].values())
+        ))
+
+        # Remaining items are by manufacturer
+        for item_type in (ItemType.SHIELD, ItemType.GRENADE,
+                          ItemType.HEAVY_ORDNANCE, ItemType.REPKIT):
+            FilterConfig["GEAR"][rarity.name][item_type] = {}
+            for manufacturer in base_manufacturers:
+                FilterConfig["GEAR"][rarity.name][item_type][manufacturer] = BoolOption(
+                    value=True,
+                    identifier=manufacturer,
+                    description=f"{rarity} {manufacturer} {item_type} ",
+                )
+            item_type_options.append(GroupedOption(
+                identifier=item_type.name,
+                description=f"{item_type} filters by manufacturer",
+                children=list(FilterConfig["GEAR"][rarity.name][item_type].values())
+            ))
+        rarity_options.append(NestedOption(
+            identifier=rarity.name,
+            description=f"{rarity} items",
+            children=item_type_options
+        ))
 
     return options
 
@@ -499,7 +571,6 @@ def filter_loot(item: LootInfo, unwanted: bool = False, unknown: bool = False) -
     if item.shiny:
         passes_filter = True
 
-    # Handle PICKUPS with simple boolean config values.
     if loot_type == LootType.PICKUPS:
         if item.pickup_type == PickupType.UNKNOWN:
             warning(f"Unknown pickup type for item: {item}")
@@ -509,26 +580,27 @@ def filter_loot(item: LootInfo, unwanted: bool = False, unknown: bool = False) -
             if item.weapon_type == WeaponType.UNKNOWN:
                 warning(f"Unknown weapon type for ammo item: {item}")
                 return unknown
-            ammo_config = FilterConfig["PICKUPS"]["AMMO"].get(item.weapon_type.name, None)
-            if ammo_config is None:
+            filter_option = FilterConfig["PICKUPS"]["AMMO"].get(item.weapon_type.name, None)
+            if filter_option is None:
                 warning(f"No ammo filter found for weapon type {item.weapon_type}")
                 return unknown
-            passes_filter = ammo_config.value
+            passes_filter = filter_option.value
         else:
-            pickup_config = FilterConfig["PICKUPS"].get(item.pickup_type.name, None)
-            if pickup_config is None:
+            filter_option = FilterConfig["PICKUPS"].get(item.pickup_type.name, None)
+            if filter_option is None:
                 warning(f"No pickup filter found for pickup type {item.pickup_type}")
                 return unknown
-            passes_filter = pickup_config.value
+            passes_filter = filter_option.value
 
-    # Handle GEAR by rarity and item type
     if loot_type == LootType.GEAR:
         rarity = item.rarity
         if rarity == Rarity.UNKNOWN:
             warning(f"Unknown rarity for item: {item}")
             return unknown
-        rarity_config = CONFIG.get("GEAR", {}).get(rarity.name, {})
-
+        rarity_config = FilterConfig["GEAR"].get(rarity.name, None)
+        if rarity_config is None:
+            warning(f"No gear filter found for rarity {rarity}")
+            return unknown
         match item.item_type:
             case ItemType.WEAPON:
                 if item.weapon_type == WeaponType.UNKNOWN:
@@ -537,25 +609,34 @@ def filter_loot(item: LootInfo, unwanted: bool = False, unknown: bool = False) -
                 if item.manufacturer == Manufacturer.UNKNOWN:
                     warning(f"Unknown manufacturer for item: {item}")
                     return unknown
-                passes_filter = bool(rarity_config
-                            .get("WEAPON", {})
-                            .get(item.weapon_type.name, {})
-                            .get(item.manufacturer.name, False))
+                filter_option = rarity_config["WEAPON"].get(
+                    item.weapon_type.name, {}).get(item.manufacturer.name, None)
+                if filter_option is None:
+                    warning(f"No weapon filter found for {item.weapon_type} "
+                            f"and manufacturer {item.manufacturer}")
+                    return unknown
+                passes_filter = filter_option.value
             case (ItemType.SHIELD | ItemType.GRENADE | ItemType.HEAVY_ORDNANCE |
                   ItemType.REPKIT | ItemType.ENHANCEMENT):
                 if item.manufacturer == Manufacturer.UNKNOWN:
                     warning(f"Unknown manufacturer for item: {item}")
                     return unknown
-                passes_filter = bool(rarity_config
-                            .get(item.item_type.name, {})
-                            .get(item.manufacturer.name, False))
+                filter_option = rarity_config.get(
+                    item.item_type.name, {}).get(item.manufacturer.name, None)
+                if filter_option is None:
+                    warning(f"No {item.item_type} filter found "
+                            f"for manufacturer {item.manufacturer}")
+                    return unknown
+                passes_filter = filter_option.value
             case ItemType.CLASS_MOD:
                 if item.vault_hunter == VaultHunter.UNKNOWN:
                     warning(f"Unknown vault hunter for item: {item}")
                     return unknown
-                passes_filter = bool(rarity_config
-                            .get("CLASS_MOD", {})
-                            .get(item.vault_hunter.name, False))
+                filter_option = rarity_config.get("CLASS_MOD", {}).get(item.vault_hunter.name, None)
+                if filter_option is None:
+                    warning(f"No class mod filter found for vault hunter {item.vault_hunter}")
+                    return unknown
+                passes_filter = filter_option.value
             case ItemType.UNKNOWN:
                 warning(f"Unknown item type for item: {item}")
                 return unknown
