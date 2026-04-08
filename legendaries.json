@@ -10,9 +10,14 @@
         "item_type": "REPKIT",
         "manufacturer": "TEDIORE"
     },
-    "Rainbow:": {
+    "Rainbow": {
         "name": "Firewerks",
         "item_type": "SHIELD",
         "manufacturer": "TORGUE"
+    },
+    "Laser": {
+        "name": "Gamma Void",
+        "item_type": "HEAVY_ORDNANCE",
+        "manufacturer": "MALIWAN"
     }
 }
