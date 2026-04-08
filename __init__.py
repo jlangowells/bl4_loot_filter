@@ -174,7 +174,7 @@ COLOR_RARITY_MAP = {
 NIAGARA_TRUE  = bytes((0xFF, 0xFF, 0xFF, 0xFF))
 NIAGARA_FALSE = bytes((0x00, 0x00, 0x00, 0x00))
 
-filter_config = {}
+config = {}
 
 def _populate_filter_config_and_build_options():
     options = []
@@ -184,26 +184,28 @@ def _populate_filter_config_and_build_options():
 
     # Set up gear filters, categorized by rarity and then item type.
     # Each item type has different details to filter by,
-    filter_config["GEAR"] = {}
+    config["GEAR"] = {}
     rarity_options = []
     for rarity in set(Rarity).difference({Rarity.UNKNOWN}):
-        filter_config["GEAR"][rarity.name] = {}
+        # Default to taking epic or better, and deleting worse.
+        default_value = rarity in (Rarity.EPIC, Rarity.LEGENDARY, Rarity.PEARLESCENT)
+        config["GEAR"][rarity.name] = {}
         item_type_options = []
         # Weapons are filtered by manufacturer and weapon type
-        filter_config["GEAR"][rarity.name]["WEAPON"] = {}
+        config["GEAR"][rarity.name]["WEAPON"] = {}
         weapon_options = []
         for weapon_type in set(WEAPON_TYPE_MAP.values()):
-            filter_config["GEAR"][rarity.name]["WEAPON"][weapon_type] = {}
+            config["GEAR"][rarity.name]["WEAPON"][weapon_type] = {}
             for manufacturer in base_manufacturers:
-                filter_config["GEAR"][rarity.name]["WEAPON"][weapon_type][manufacturer] = BoolOption(
-                    value=True,
+                config["GEAR"][rarity.name]["WEAPON"][weapon_type][manufacturer] = BoolOption(
+                    value=default_value,
                     identifier=manufacturer.name,
                     description=f"{rarity} {manufacturer} {weapon_type}",
                 )
             weapon_options.append(NestedOption(
                 identifier=weapon_type.name,
                 description=f"{weapon_type} filters by manufacturer",
-                children=list(filter_config["GEAR"][rarity.name]["WEAPON"][weapon_type].values())
+                children=list(config["GEAR"][rarity.name]["WEAPON"][weapon_type].values())
             ))
         item_type_options.append(NestedOption(
             identifier="WEAPON",
@@ -212,47 +214,47 @@ def _populate_filter_config_and_build_options():
         ))
 
         # Enhancements have all manufacturers
-        filter_config["GEAR"][rarity.name]["ENHANCEMENT"] = {}
+        config["GEAR"][rarity.name]["ENHANCEMENT"] = {}
         for manufacturer in set(MANUFACTURER_MAP.values()):
-            filter_config["GEAR"][rarity.name]["ENHANCEMENT"][manufacturer] = BoolOption(
-                value=True,
+            config["GEAR"][rarity.name]["ENHANCEMENT"][manufacturer] = BoolOption(
+                value=default_value,
                 identifier=manufacturer.name,
                 description=f"{rarity} {manufacturer} enhancements",
             )
         item_type_options.append(NestedOption(
             identifier="ENHANCEMENT",
             description="Enhancement filters",
-            children=list(filter_config["GEAR"][rarity.name]["ENHANCEMENT"].values())
+            children=list(config["GEAR"][rarity.name]["ENHANCEMENT"].values())
         ))
 
         # Class mods are by vault hunter rather than manufacturer
-        filter_config["GEAR"][rarity.name]["CLASS_MOD"] = {}
+        config["GEAR"][rarity.name]["CLASS_MOD"] = {}
         for vh in set(VAULT_HUNTER_MAP.values()):
-            filter_config["GEAR"][rarity.name]["CLASS_MOD"][vh] = BoolOption(
-                value=True,
+            config["GEAR"][rarity.name]["CLASS_MOD"][vh] = BoolOption(
+                value=default_value,
                 identifier=vh.name,
                 description=f"{rarity} {vh} class mods",
             )
         item_type_options.append(NestedOption(
             identifier="CLASS_MOD",
             description="Class mod filters",
-            children=list(filter_config["GEAR"][rarity.name]["CLASS_MOD"].values())
+            children=list(config["GEAR"][rarity.name]["CLASS_MOD"].values())
         ))
 
         # Remaining items are by manufacturer
         for item_type in (ItemType.SHIELD, ItemType.GRENADE,
                           ItemType.HEAVY_ORDNANCE, ItemType.REPKIT):
-            filter_config["GEAR"][rarity.name][item_type] = {}
+            config["GEAR"][rarity.name][item_type] = {}
             for manufacturer in base_manufacturers:
-                filter_config["GEAR"][rarity.name][item_type][manufacturer] = BoolOption(
-                    value=True,
+                config["GEAR"][rarity.name][item_type][manufacturer] = BoolOption(
+                    value=default_value,
                     identifier=manufacturer.name,
                     description=f"{rarity} {manufacturer} {item_type} ",
                 )
             item_type_options.append(NestedOption(
                 identifier=item_type.name,
                 description=f"{item_type} filters by manufacturer",
-                children=list(filter_config["GEAR"][rarity.name][item_type].values())
+                children=list(config["GEAR"][rarity.name][item_type].values())
             ))
 
         rarity_options.append(NestedOption(
@@ -268,14 +270,14 @@ def _populate_filter_config_and_build_options():
     ))
 
     # Set up pickup filters
-    filter_config["PICKUPS"] = {}
+    config["PICKUPS"] = {}
     pickup_options = []
     for pickup_type in set(PICKUP_TYPE_MAP.values()):
         # Allow gun type ammo filtering
         if pickup_type == PickupType.AMMO:
-            filter_config["PICKUPS"]["AMMO"] = {}
+            config["PICKUPS"]["AMMO"] = {}
             for weapon_type in set(WEAPON_TYPE_MAP.values()):
-                filter_config["PICKUPS"]["AMMO"][weapon_type] = BoolOption(
+                config["PICKUPS"]["AMMO"][weapon_type] = BoolOption(
                     value=True,
                     identifier=weapon_type.name,
                     description=f"{weapon_type} ammo",
@@ -283,15 +285,15 @@ def _populate_filter_config_and_build_options():
             pickup_options.append(NestedOption(
                 identifier="Ammo",
                 description="Ammo filters by weapon type",
-                children=list(filter_config["PICKUPS"]["AMMO"].values())
+                children=list(config["PICKUPS"]["AMMO"].values())
             ))
         else:
-            filter_config["PICKUPS"][pickup_type] = BoolOption(
+            config["PICKUPS"][pickup_type] = BoolOption(
                 value=True,
                 identifier=pickup_type.name,
                 description=f"{pickup_type} pickups",
             )
-            pickup_options.append(filter_config["PICKUPS"][pickup_type])
+            pickup_options.append(config["PICKUPS"][pickup_type])
     options.append(NestedOption(
         identifier="PICKUPS",
         description="Pickup Filters",
@@ -299,9 +301,9 @@ def _populate_filter_config_and_build_options():
     ))
 
     # Set up firmware filters
-    filter_config["FIRMWARE"] = {}
+    config["FIRMWARE"] = {}
     for item_type in set(FIRMWARE_MAP.values()):
-        filter_config["FIRMWARE"][item_type] = BoolOption(
+        config["FIRMWARE"][item_type] = BoolOption(
             value=True,
             identifier=item_type,
             description=f"{item_type} items with firmware",
@@ -309,7 +311,7 @@ def _populate_filter_config_and_build_options():
     options.append(NestedOption(
         identifier="FIRMWARE",
         description="Firmware Filters",
-        children=list(filter_config["FIRMWARE"].values())
+        children=list(config["FIRMWARE"].values())
     ))
 
     return options
@@ -588,13 +590,13 @@ def filter_loot(item: LootInfo, unwanted: bool = False, unknown: bool = False) -
             if item.weapon_type == WeaponType.UNKNOWN:
                 warning(f"Unknown weapon type for ammo item: {item}")
                 return unknown
-            filter_option = filter_config["PICKUPS"]["AMMO"].get(item.weapon_type.name, None)
+            filter_option = config["PICKUPS"]["AMMO"].get(item.weapon_type.name, None)
             if filter_option is None:
                 warning(f"No ammo filter found for weapon type {item.weapon_type}")
                 return unknown
             passes_filter = filter_option.value
         else:
-            filter_option = filter_config["PICKUPS"].get(item.pickup_type.name, None)
+            filter_option = config["PICKUPS"].get(item.pickup_type.name, None)
             if filter_option is None:
                 warning(f"No pickup filter found for pickup type {item.pickup_type}")
                 return unknown
@@ -605,7 +607,7 @@ def filter_loot(item: LootInfo, unwanted: bool = False, unknown: bool = False) -
         if rarity == Rarity.UNKNOWN:
             warning(f"Unknown rarity for item: {item}")
             return unknown
-        rarity_config = filter_config["GEAR"].get(rarity.name, None)
+        rarity_config = config["GEAR"].get(rarity.name, None)
         if rarity_config is None:
             warning(f"No gear filter found for rarity {rarity}")
             return unknown
@@ -652,7 +654,7 @@ def filter_loot(item: LootInfo, unwanted: bool = False, unknown: bool = False) -
         # Final check to see if it's an item with firmware
         # that we should take regardless of other filters.
         if not passes_filter and item.firmware:
-            firmware_filter = filter_config["FIRMWARE"].get(item.item_type)
+            firmware_filter = config["FIRMWARE"].get(item.item_type)
             if firmware_filter is None:
                 warning(f"Item has firmware but no firmware filter found for"
                         f"item type {item.item_type} in item: {item}")
